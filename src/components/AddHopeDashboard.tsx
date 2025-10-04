@@ -6,7 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Check, Shield, Trophy, QrCode, RefreshCcw, Share2, Download } from "lucide-react";
+import {
+  Check,
+  Shield,
+  Trophy,
+  QrCode,
+  RefreshCcw,
+  Share2,
+  Download,
+} from "lucide-react";
+import Image from "next/image";
 
 /**
  * Add Hope Transparency Dashboard – Hackathon Prototype
@@ -35,8 +44,7 @@ const NGO_SAMPLE = {
   stat: "200 children fed this month",
   story:
     "Our breakfast club ensures learners start the day nourished and ready to learn. Thank you for your support!",
-  image:
-    "/ngopic.jpg", // stock placeholder
+  image: "/ngopic.jpg", // stock placeholder
 };
 
 // Simple hash utility to simulate tamper-evident chain
@@ -49,16 +57,36 @@ function hashString(s: string) {
   return (h >>> 0).toString(16).padStart(8, "0");
 }
 
-function chainHash(prevHash: string, payload: any): string {
+function chainHash<T extends object>(prevHash: string, payload: T): string {
   return hashString(`${prevHash}|${JSON.stringify(payload)}`);
 }
 
 function tierFor(totalDonations: number) {
-  if (totalDonations >= 200) return { name: "Platinum", perk: "Impact Day invite", pct: 100 };
-  if (totalDonations >= 100) return { name: "Gold", perk: "10% off favourite meal", pct: Math.round((totalDonations / 200) * 100) };
-  if (totalDonations >= 50) return { name: "Silver", perk: "5% discount voucher", pct: Math.round((totalDonations / 200) * 100) };
-  if (totalDonations >= 10) return { name: "Bronze", perk: "Thank-you badge", pct: Math.round((totalDonations / 200) * 100) };
-  return { name: "New", perk: "Make your first impact", pct: Math.round((totalDonations / 200) * 100) };
+  if (totalDonations >= 200)
+    return { name: "Platinum", perk: "Impact Day invite", pct: 100 };
+  if (totalDonations >= 100)
+    return {
+      name: "Gold",
+      perk: "10% off favourite meal",
+      pct: Math.round((totalDonations / 200) * 100),
+    };
+  if (totalDonations >= 50)
+    return {
+      name: "Silver",
+      perk: "5% discount voucher",
+      pct: Math.round((totalDonations / 200) * 100),
+    };
+  if (totalDonations >= 10)
+    return {
+      name: "Bronze",
+      perk: "Thank-you badge",
+      pct: Math.round((totalDonations / 200) * 100),
+    };
+  return {
+    name: "New",
+    perk: "Make your first impact",
+    pct: Math.round((totalDonations / 200) * 100),
+  };
 }
 
 // KFC brand stripe bar (red/white)
@@ -67,21 +95,25 @@ const KFCBrandBar = () => (
     className="h-3 w-full"
     style={{
       backgroundImage:
-        'repeating-linear-gradient(90deg, #e4002b 0 24px, #ffffff 24px 48px)'
+        "repeating-linear-gradient(90deg, #e4002b 0 24px, #ffffff 24px 48px)",
     }}
   />
 );
 
 export default function AddHopeDashboard() {
   const [donations, setDonations] = useState(MOCK_DONATIONS);
-  const totalDonations = useMemo(() => donations.reduce((s, d) => s + d.amount, 0), [donations]);
-  const mealsProvided = Math.floor(totalDonations / MEAL_COST * 10); // exaggerated mapping for demo
+  const totalDonations = useMemo(
+    () => donations.reduce((s, d) => s + d.amount, 0),
+    [donations]
+  );
+  const mealsProvided = Math.floor((totalDonations / MEAL_COST) * 10); // exaggerated mapping for demo
   const tier = useMemo(() => tierFor(totalDonations), [totalDonations]);
 
   // Verification state
   const [siteCode, setSiteCode] = useState("");
   const [mealCount, setMealCount] = useState("");
   const [otp, setOtp] = useState("");
+
   type ChainEntry =
     | {
         idx: number;
@@ -117,7 +149,10 @@ export default function AddHopeDashboard() {
 
   const addDonation = (amount = 2) => {
     const id = `d${donations.length + 1}`;
-    setDonations([...donations, { id, date: new Date().toISOString().slice(0, 10), amount }]);
+    setDonations([
+      ...donations,
+      { id, date: new Date().toISOString().slice(0, 10), amount },
+    ]);
   };
 
   const verifyDelivery = () => {
@@ -145,24 +180,46 @@ export default function AddHopeDashboard() {
   };
 
   const shareReport = () => {
-    const txt = `I donated R${totalDonations} to Add Hope – estimated ${mealsProvided} meals supported. Join me!`;
-    if (navigator.share) {
-      navigator.share({ title: "Add Hope Impact", text: txt });
-    } else {
-      navigator.clipboard.writeText(txt);
-      alert("Copied a shareable message to your clipboard.");
-    }
-  };
+  const txt = `I donated R${totalDonations} to Add Hope – estimated ${mealsProvided} meals supported. Join me!`;
+
+  // Narrow navigator safely
+  const nav = typeof window !== "undefined"
+    ? (window.navigator as Navigator & {
+        share?: (data: ShareData) => Promise<void>;
+        clipboard?: Clipboard;
+      })
+    : undefined;
+
+  if (nav?.share) {
+    nav.share({ title: "Add Hope Impact", text: txt }).catch(() => {
+      if (nav?.clipboard?.writeText) {
+        nav.clipboard.writeText(txt);
+        alert("Copied a shareable message to your clipboard.");
+      }
+    });
+  } else if (nav?.clipboard?.writeText) {
+    nav.clipboard.writeText(txt);
+    alert("Copied a shareable message to your clipboard.");
+  }
+};
 
   return (
     <div className=" min-h-screen w-full bg-white p-6 text-[17px] md:text-[18px]">
       <div className="mx-auto max-w-5xl space-y-6">
         <KFCBrandBar />
         <header className="flex items-center justify-between">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-red-700">Add Hope Transparency Dashboard</h1>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-red-700">
+            Add Hope Transparency Dashboard
+          </h1>
           <div className="flex items-center gap-2">
-            <Badge className="rounded-2xl px-3 py-1 text-sm bg-red-50 text-red-700 border border-red-200">This month</Badge>
-            <Button variant="outline" className="border-red-600 text-red-700 hover:bg-red-50" onClick={() => addDonation(2)}>
+            <Badge className="rounded-2xl px-3 py-1 text-sm bg-red-50 text-red-700 border border-red-200">
+              This month
+            </Badge>
+            <Button
+              variant="outline"
+              className="border-red-600 text-red-700 hover:bg-red-50"
+              onClick={() => addDonation(2)}
+            >
               Quick add R2
             </Button>
           </div>
@@ -173,12 +230,24 @@ export default function AddHopeDashboard() {
           <Card className="rounded-2xl shadow-sm">
             <CardContent className="p-5">
               <div className="text-sm text-slate-500">Your donations</div>
-              <div className="mt-2 text-3xl font-semibold">R{totalDonations.toFixed(0)}</div>
-              <div className="mt-1 text-xs text-slate-500">Across {donations.length} moments of giving</div>
+              <div className="mt-2 text-3xl font-semibold">
+                R{totalDonations.toFixed(0)}
+              </div>
+              <div className="mt-1 text-xs text-slate-500">
+                Across {donations.length} moments of giving
+              </div>
               <div className="mt-4">
-                <div className="mb-1 flex items-center gap-2 text-sm"><Trophy className="h-4 w-4"/>Tier: <span className="font-medium">{tier.name}</span></div>
-                <Progress className="bg-red-100 [&>div]:bg-red-600" value={Math.min(100, tier.pct)} />
-                <div className="mt-1 text-xs text-slate-500">Perk: {tier.perk}</div>
+                <div className="mb-1 flex items-center gap-2 text-sm">
+                  <Trophy className="h-4 w-4" />
+                  Tier: <span className="font-medium">{tier.name}</span>
+                </div>
+                <Progress
+                  className="bg-red-100 [&>div]:bg-red-600"
+                  value={Math.min(100, tier.pct)}
+                />
+                <div className="mt-1 text-xs text-slate-500">
+                  Perk: {tier.perk}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -187,16 +256,38 @@ export default function AddHopeDashboard() {
             <CardContent className="p-5">
               <div className="text-sm text-slate-500">Spending → Impact</div>
               <div className="mt-2 text-3xl font-semibold">{mealsProvided}</div>
-              <div className="text-xs text-slate-500">estimated meals from R{MOCK_SPEND_ZAR} spend</div>
+              <div className="text-xs text-slate-500">
+                estimated meals from R{MOCK_SPEND_ZAR} spend
+              </div>
               <div className="mt-4 flex items-center gap-2">
-                <Button size="sm" variant="outline" className="border-red-600 text-red-700 hover:bg-red-50" onClick={shareReport}>
-                  <Share2 className="mr-2 h-4 w-4"/>Share impact
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-red-600 text-red-700 hover:bg-red-50"
+                  onClick={shareReport}
+                >
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Share impact
                 </Button>
                 {tier.name === "Silver" && (
-                  <Button size="sm" variant="default" className="bg-red-600 hover:bg-red-700"><Download className="mr-2 h-4 w-4"/>Get 5% voucher</Button>
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Get 5% voucher
+                  </Button>
                 )}
                 {tier.name === "Gold" && (
-                  <Button size="sm" variant="default" className="bg-red-600 hover:bg-red-700"><Download className="mr-2 h-4 w-4"/>Get 10% voucher</Button>
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Get 10% voucher
+                  </Button>
                 )}
               </div>
             </CardContent>
@@ -205,10 +296,26 @@ export default function AddHopeDashboard() {
           <Card className="rounded-2xl shadow-sm">
             <CardContent className="p-5">
               <div className="text-sm text-slate-500">Trust & Safety</div>
-              <div className="mt-2 flex items-center gap-2 text-red-600"><Shield className="h-5 w-5"/><span className="font-semibold">Tamper-evident</span></div>
-              <p className="mt-1 text-xs text-slate-500">Deliveries are logged with a hash chain. GPS is privacy-safe (~1km).</p>
+              <div className="mt-2 flex items-center gap-2 text-red-600">
+                <Shield className="h-5 w-5" />
+                <span className="font-semibold">Tamper-evident</span>
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                Deliveries are logged with a hash chain. GPS is privacy-safe
+                (~1km).
+              </p>
               <div className="mt-4">
-                <Button size="sm" variant="outline" className="border-red-600 text-red-700 hover:bg-red-50" onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-red-600 text-red-700 hover:bg-red-50"
+                  onClick={() =>
+                    window.scrollTo({
+                      top: document.body.scrollHeight,
+                      behavior: "smooth",
+                    })
+                  }
+                >
                   View verification log
                 </Button>
               </div>
@@ -219,16 +326,46 @@ export default function AddHopeDashboard() {
         {/* NGO Story */}
         <Card className="rounded-2xl shadow-sm overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-3">
-            <img src={NGO_SAMPLE.image} alt="NGO" className="h-full w-full object-cover md:col-span-1"/>
+            <div className="relative md:col-span-1 h-48 md:h-auto">
+              <Image
+                src={NGO_SAMPLE.image} // "/ngopic.jpg" from /public
+                alt="NGO"
+                fill
+                sizes="(min-width: 768px) 33vw, 100vw"
+                className="object-cover"
+                priority
+              />
+            </div>
             <CardContent className="p-5 md:col-span-2">
-              <div className="text-xs uppercase tracking-wide text-slate-500">You supported</div>
-              <h2 className="mt-1 text-xl font-semibold">{NGO_SAMPLE.name} · {NGO_SAMPLE.area}</h2>
-              <div className="mt-1 text-sm text-slate-600">{NGO_SAMPLE.stat}</div>
+              <div className="text-xs uppercase tracking-wide text-slate-500">
+                You supported
+              </div>
+              <h2 className="mt-1 text-xl font-semibold">
+                {NGO_SAMPLE.name} · {NGO_SAMPLE.area}
+              </h2>
+              <div className="mt-1 text-sm text-slate-600">
+                {NGO_SAMPLE.stat}
+              </div>
               <p className="mt-3 text-slate-700">“{NGO_SAMPLE.story}”</p>
               <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-500">
-                <Badge variant="secondary" className="bg-red-50 text-red-700 border border-red-200">Story verified</Badge>
-                <Badge variant="secondary" className="bg-red-50 text-red-700 border border-red-200">Consent on file</Badge>
-                <Badge variant="secondary" className="bg-red-50 text-red-700 border border-red-200">No child faces shown</Badge>
+                <Badge
+                  variant="secondary"
+                  className="bg-red-50 text-red-700 border border-red-200"
+                >
+                  Story verified
+                </Badge>
+                <Badge
+                  variant="secondary"
+                  className="bg-red-50 text-red-700 border border-red-200"
+                >
+                  Consent on file
+                </Badge>
+                <Badge
+                  variant="secondary"
+                  className="bg-red-50 text-red-700 border border-red-200"
+                >
+                  No child faces shown
+                </Badge>
               </div>
             </CardContent>
           </div>
@@ -237,10 +374,30 @@ export default function AddHopeDashboard() {
         {/* Tabs */}
         <Tabs defaultValue="overview">
           <TabsList className="grid w-full grid-cols-3 md:grid-cols-4 bg-red-50 rounded-xl p-1">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-red-600 data-[state=active]:text-white rounded-lg">Overview</TabsTrigger>
-            <TabsTrigger value="donations" className="data-[state=active]:bg-red-600 data-[state=active]:text-white rounded-lg">Donations</TabsTrigger>
-            <TabsTrigger value="verify" className="data-[state=active]:bg-red-600 data-[state=active]:text-white rounded-lg">Verify Delivery</TabsTrigger>
-            <TabsTrigger value="log" className="data-[state=active]:bg-red-600 data-[state=active]:text-white rounded-lg">Verification Log</TabsTrigger>
+            <TabsTrigger
+              value="overview"
+              className="data-[state=active]:bg-red-600 data-[state=active]:text-white rounded-lg"
+            >
+              Overview
+            </TabsTrigger>
+            <TabsTrigger
+              value="donations"
+              className="data-[state=active]:bg-red-600 data-[state=active]:text-white rounded-lg"
+            >
+              Donations
+            </TabsTrigger>
+            <TabsTrigger
+              value="verify"
+              className="data-[state=active]:bg-red-600 data-[state=active]:text-white rounded-lg"
+            >
+              Verify Delivery
+            </TabsTrigger>
+            <TabsTrigger
+              value="log"
+              className="data-[state=active]:bg-red-600 data-[state=active]:text-white rounded-lg"
+            >
+              Verification Log
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-4">
@@ -248,13 +405,40 @@ export default function AddHopeDashboard() {
               <CardContent className="p-5">
                 <h3 className="text-xl font-semibold">Monthly Impact Report</h3>
                 <ul className="mt-3 list-disc pl-5 text-sm text-slate-700 space-y-1">
-                  <li>You donated <span className="font-medium">R{totalDonations.toFixed(0)}</span> this month.</li>
-                  <li>That money contributed to <span className="font-medium">{mealsProvided} meals</span> across partner sites.</li>
-                  <li>Highlight: <span className="font-medium">{NGO_SAMPLE.name}</span> in {NGO_SAMPLE.area}.</li>
+                  <li>
+                    You donated{" "}
+                    <span className="font-medium">
+                      R{totalDonations.toFixed(0)}
+                    </span>{" "}
+                    this month.
+                  </li>
+                  <li>
+                    That money contributed to{" "}
+                    <span className="font-medium">{mealsProvided} meals</span>{" "}
+                    across partner sites.
+                  </li>
+                  <li>
+                    Highlight:{" "}
+                    <span className="font-medium">{NGO_SAMPLE.name}</span> in{" "}
+                    {NGO_SAMPLE.area}.
+                  </li>
                 </ul>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <Button variant="default" className="bg-red-600 hover:bg-red-700" onClick={() => addDonation(10)}><RefreshCcw className="mr-2 h-4 w-4"/>Simulate R10 donation</Button>
-                  <Button variant="outline" className="border-red-600 text-red-700 hover:bg-red-50" onClick={() => addDonation(50)}>Simulate R50 donation</Button>
+                  <Button
+                    variant="default"
+                    className="bg-red-600 hover:bg-red-700"
+                    onClick={() => addDonation(10)}
+                  >
+                    <RefreshCcw className="mr-2 h-4 w-4" />
+                    Simulate R10 donation
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="border-red-600 text-red-700 hover:bg-red-50"
+                    onClick={() => addDonation(50)}
+                  >
+                    Simulate R50 donation
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -266,9 +450,12 @@ export default function AddHopeDashboard() {
                 <h3 className="text-xl font-semibold">Your Donation History</h3>
                 <div className="mt-3 grid grid-cols-1 gap-2">
                   {donations.map((d) => (
-                    <div key={d.id} className="flex items-center justify-between rounded-xl border bg-white p-3 text-sm">
+                    <div
+                      key={d.id}
+                      className="flex items-center justify-between rounded-xl border bg-white p-3 text-sm"
+                    >
                       <div className="flex items-center gap-3">
-                        <Check className="h-4 w-4 text-red-600"/>
+                        <Check className="h-4 w-4 text-red-600" />
                         <span>{d.date}</span>
                       </div>
                       <div className="font-medium">R{d.amount.toFixed(0)}</div>
@@ -282,24 +469,51 @@ export default function AddHopeDashboard() {
           <TabsContent value="verify" className="mt-4">
             <Card className="rounded-2xl shadow-sm">
               <CardContent className="p-5 space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2"><QrCode className="h-5 w-5"/>Log a Delivery (Field-side)</h3>
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <QrCode className="h-5 w-5" />
+                  Log a Delivery (Field-side)
+                </h3>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                   <div className="md:col-span-2">
                     <label className="text-xs text-slate-500">Site code</label>
-                    <Input placeholder="e.g., KZN-EMD-004" value={siteCode} onChange={(e) => setSiteCode(e.target.value)} />
+                    <Input
+                      placeholder="e.g., KZN-EMD-004"
+                      value={siteCode}
+                      onChange={(e) => setSiteCode(e.target.value)}
+                    />
                   </div>
                   <div>
-                    <label className="text-xs text-slate-500">Meals delivered</label>
-                    <Input type="number" placeholder="e.g., 150" value={mealCount} onChange={(e) => setMealCount(e.target.value)} />
+                    <label className="text-xs text-slate-500">
+                      Meals delivered
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="e.g., 150"
+                      value={mealCount}
+                      onChange={(e) => setMealCount(e.target.value)}
+                    />
                   </div>
                   <div>
-                    <label className="text-xs text-slate-500">One-time PIN</label>
-                    <Input placeholder="e.g., 924613" value={otp} onChange={(e) => setOtp(e.target.value)} />
+                    <label className="text-xs text-slate-500">
+                      One-time PIN
+                    </label>
+                    <Input
+                      placeholder="e.g., 924613"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                    />
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button onClick={verifyDelivery} className="bg-red-600 hover:bg-red-700">Submit & Anchor</Button>
-                  <span className="text-xs text-slate-500">Signed by rotating community verifier</span>
+                  <Button
+                    onClick={verifyDelivery}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    Submit & Anchor
+                  </Button>
+                  <span className="text-xs text-slate-500">
+                    Signed by rotating community verifier
+                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -308,7 +522,9 @@ export default function AddHopeDashboard() {
           <TabsContent value="log" className="mt-4">
             <Card className="rounded-2xl shadow-sm">
               <CardContent className="p-5">
-                <h3 className="text-lg font-semibold">Tamper‑Evident Verification Log</h3>
+                <h3 className="text-lg font-semibold">
+                  Tamper‑Evident Verification Log
+                </h3>
                 <div className="mt-3 overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead className="text-slate-500">
@@ -326,24 +542,41 @@ export default function AddHopeDashboard() {
                       {chain.map((e) => (
                         <tr key={e.idx} className="border-t">
                           <td className="py-2 pr-4">{e.idx}</td>
-                          <td className="py-2 pr-4">{new Date(e.ts).toLocaleString()}</td>
-                          <td className="py-2 pr-4">{'site' in e.payload ? e.payload.site : "—"}</td>
-                          <td className="py-2 pr-4">{'meals' in e.payload ? e.payload.meals : "—"}</td>
-                          <td className="py-2 pr-4">{'verifier' in e.payload ? e.payload.verifier : "—"}</td>
-                          <td className="py-2 pr-4 font-mono text-xs">{e.prev.slice(0, 8)}…</td>
-                          <td className="py-2 pr-4 font-mono text-xs">{e.hash.slice(0, 8)}…</td>
+                          <td className="py-2 pr-4">
+                            {new Date(e.ts).toLocaleString()}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {"site" in e.payload ? e.payload.site : "—"}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {"meals" in e.payload ? e.payload.meals : "—"}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {"verifier" in e.payload ? e.payload.verifier : "—"}
+                          </td>
+                          <td className="py-2 pr-4 font-mono text-xs">
+                            {e.prev.slice(0, 8)}…
+                          </td>
+                          <td className="py-2 pr-4 font-mono text-xs">
+                            {e.hash.slice(0, 8)}…
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-                <p className="mt-3 text-xs text-slate-500">Any change to a row breaks all subsequent hashes – exposing tampering.</p>
+                <p className="mt-3 text-xs text-slate-500">
+                  Any change to a row breaks all subsequent hashes – exposing
+                  tampering.
+                </p>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
 
-        <footer className="py-6 text-center text-xs text-slate-500">Hackathon prototype · Local-first · Privacy by default</footer>
+        <footer className="py-6 text-center text-xs text-slate-500">
+          Hackathon prototype · Local-first · Privacy by default
+        </footer>
       </div>
     </div>
   );
